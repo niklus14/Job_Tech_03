@@ -1,3 +1,10 @@
+---
+title: Antidata
+emoji: 🚀
+colorFrom: blue
+colorTo: indigo
+sdk: docker
+---
 # Antidata: JobPath Platform 🚀
 
 Antidata JobPath is an advanced AI-driven Career Intelligence Platform that connects local job seekers in Azerbaijan to market needs using state-of-the-art Machine Learning and LLM techniques.
