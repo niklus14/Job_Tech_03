@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Layers, Zap, AlertTriangle, CheckCircle } from 'lucide-react';
 
-const API_URL = 'http://localhost:8001';
+const API_URL = 'https://eren14-newteam.hf.space';
 
 export default function AdminDashboard() {
   const [data, setData] = useState(null);

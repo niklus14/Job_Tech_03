@@ -7,7 +7,7 @@ import {
   BookOpen, TrendingUp, ArrowRight, Zap
 } from 'lucide-react';
 
-const API_URL = 'http://localhost:8001';
+const API_URL = 'https://eren14-newteam.hf.space';
 
 function ScoreGauge({ score, label, size = 160 }) {
   const radius = size * 0.4;

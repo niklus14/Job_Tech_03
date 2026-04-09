@@ -2,7 +2,7 @@ import { useState } from 'react';
 import axios from 'axios';
 import { Target, Search, BookOpen, Award, Code, CheckCircle, AlertTriangle } from 'lucide-react';
 
-const API_URL = 'http://localhost:8001';
+const API_URL = 'https://eren14-newteam.hf.space';
 
 export default function StudentDashboard() {
   const [studentId, setStudentId] = useState('stu_01');

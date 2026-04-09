@@ -7,7 +7,7 @@ import {
   Link, Key, RefreshCw, Wifi
 } from 'lucide-react';
 
-const API_URL = 'http://localhost:8001';
+const API_URL = 'https://eren14-newteam.hf.space';
 
 function MiniProgress({ value, color = 'blue', width = '100%' }) {
   return (
