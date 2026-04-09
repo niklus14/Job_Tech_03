@@ -1,0 +1,460 @@
+[
+  {
+    "job_title": "Cybersecurity Engineer",
+    "scores": {
+      "final": 37.62,
+      "skill_match": 33.33,
+      "semantic": 47.63
+    },
+    "cv_skills": [
+      "SIEM",
+      "LINUX",
+      "WAF",
+      "Linux",
+      "Owasp",
+      "English",
+      "Python"
+    ],
+    "required_skills": [
+      "English",
+      "Linux",
+      "NGFW",
+      "Russian",
+      "SIEM",
+      "SOAR",
+      "WAF",
+      "Windows",
+      "endpoint security",
+      "pre-sales",
+      "threat intelligence",
+      "vulnerability assessment"
+    ],
+    "missing_skills": [
+      "NGFW",
+      "Russian",
+      "SOAR",
+      "Windows",
+      "endpoint security",
+      "pre-sales",
+      "threat intelligence",
+      "vulnerability assessment"
+    ],
+    "courses": [
+      {
+        "skill": "NGFW",
+        "course_name": "Next Generation Firewalls",
+        "platform": "Pluralsight",
+        "link": "https://www.pluralsight.com/courses/next-gen-firewalls"
+      },
+      {
+        "skill": "Russian",
+        "course_name": "Russian Language for Professionals",
+        "platform": "Coursera",
+        "link": "https://www.coursera.org/learn/russian-language"
+      },
+      {
+        "skill": "SOAR",
+        "course_name": "Security Orchestration, Automation and Response",
+        "platform": "Udemy",
+        "link": "https://www.udemy.com/course/soar-security/"
+      },
+      {
+        "skill": "Windows",
+        "course_name": "Windows Security",
+        "platform": "Pluralsight",
+        "link": "https://www.pluralsight.com/courses/windows-security"
+      },
+      {
+        "skill": "endpoint security",
+        "course_name": "Endpoint Security Management",
+        "platform": "Pluralsight",
+        "link": "https://www.pluralsight.com/courses/endpoint-security"
+      },
+      {
+        "skill": "threat intelligence",
+        "course_name": "Threat Intelligence",
+        "platform": "Cybrary",
+        "link": "https://www.cybrary.it/course/threat-intelligence/"
+      },
+      {
+        "skill": "vulnerability assessment",
+        "course_name": "Vulnerability Assessment",
+        "platform": "LinkedIn Learning",
+        "link": "https://www.linkedin.com/learning/vulnerability-assessment"
+      }
+    ],
+    "learning_path": [
+      {
+        "skill": "NGFW",
+        "after_learning_score": 44.6,
+        "increase": 7
+      },
+      {
+        "skill": "Russian",
+        "after_learning_score": 48.6,
+        "increase": 4
+      },
+      {
+        "skill": "SOAR",
+        "after_learning_score": 52.6,
+        "increase": 4
+      },
+      {
+        "skill": "Windows",
+        "after_learning_score": 59.6,
+        "increase": 7
+      },
+      {
+        "skill": "endpoint security",
+        "after_learning_score": 63.6,
+        "increase": 4
+      },
+      {
+        "skill": "pre-sales",
+        "after_learning_score": 67.6,
+        "increase": 4
+      },
+      {
+        "skill": "threat intelligence",
+        "after_learning_score": 71.6,
+        "increase": 4
+      },
+      {
+        "skill": "vulnerability assessment",
+        "after_learning_score": 75.6,
+        "increase": 4
+      }
+    ]
+  },
+  {
+    "job_title": "Cybersecurity Specialist",
+    "scores": {
+      "final": 30.04,
+      "skill_match": 25.0,
+      "semantic": 41.8
+    },
+    "cv_skills": [
+      "SIEM",
+      "LINUX",
+      "WAF",
+      "Linux",
+      "Owasp",
+      "English",
+      "Python"
+    ],
+    "required_skills": [
+      "Active Directory",
+      "Azerbaijani",
+      "C#",
+      "English",
+      "Firewall",
+      "IDS/IPS",
+      "JavaScript",
+      "OWASP",
+      "Python",
+      "Russian",
+      "SIEM",
+      "WAF",
+      "code review",
+      "network security",
+      "penetration testing",
+      "vulnerability scanning"
+    ],
+    "missing_skills": [
+      "Active Directory",
+      "Azerbaijani",
+      "C#",
+      "Firewall",
+      "IDS/IPS",
+      "JavaScript",
+      "OWASP",
+      "Russian",
+      "code review",
+      "network security",
+      "penetration testing",
+      "vulnerability scanning"
+    ],
+    "courses": [
+      {
+        "skill": "Active Directory",
+        "course_name": "Active Directory for Security Professionals",
+        "platform": "Pluralsight",
+        "link": "https://www.pluralsight.com/courses/active-directory-security"
+      },
+      {
+        "skill": "Azerbaijani",
+        "course_name": "Azerbaijani Language Basics",
+        "platform": "Udemy",
+        "link": "https://www.udemy.com/course/azerbaijani-language/"
+      },
+      {
+        "skill": "C#",
+        "course_name": "C# Programming Basics",
+        "platform": "Udemy",
+        "link": "https://www.udemy.com/course/csharp-basics/"
+      },
+      {
+        "skill": "IDS/IPS",
+        "course_name": "IDS and IPS Security",
+        "platform": "Udemy",
+        "link": "https://www.udemy.com/course/ids-ips-security/"
+      },
+      {
+        "skill": "OWASP",
+        "course_name": "OWASP Top 10 Web Security Risks",
+        "platform": "Udemy",
+        "link": "https://www.udemy.com/course/owasp-top-10/"
+      },
+      {
+        "skill": "Russian",
+        "course_name": "Russian Language for Professionals",
+        "platform": "Coursera",
+        "link": "https://www.coursera.org/learn/russian-language"
+      },
+      {
+        "skill": "code review",
+        "course_name": "Secure Code Review",
+        "platform": "Pluralsight",
+        "link": "https://www.pluralsight.com/courses/secure-code-review"
+      },
+      {
+        "skill": "network security",
+        "course_name": "Network Security Fundamentals",
+        "platform": "Coursera",
+        "link": "https://www.coursera.org/learn/network-security"
+      },
+      {
+        "skill": "penetration testing",
+        "course_name": "Penetration Testing",
+        "platform": "Udemy",
+        "link": "https://www.udemy.com/course/penetration-testing/"
+      }
+    ],
+    "learning_path": [
+      {
+        "skill": "Active Directory",
+        "after_learning_score": 34.0,
+        "increase": 4
+      },
+      {
+        "skill": "Azerbaijani",
+        "after_learning_score": 38.0,
+        "increase": 4
+      },
+      {
+        "skill": "C#",
+        "after_learning_score": 42.0,
+        "increase": 4
+      },
+      {
+        "skill": "Firewall",
+        "after_learning_score": 46.0,
+        "increase": 4
+      },
+      {
+        "skill": "IDS/IPS",
+        "after_learning_score": 50.0,
+        "increase": 4
+      },
+      {
+        "skill": "JavaScript",
+        "after_learning_score": 54.0,
+        "increase": 4
+      },
+      {
+        "skill": "OWASP",
+        "after_learning_score": 58.0,
+        "increase": 4
+      },
+      {
+        "skill": "Russian",
+        "after_learning_score": 62.0,
+        "increase": 4
+      },
+      {
+        "skill": "code review",
+        "after_learning_score": 66.0,
+        "increase": 4
+      },
+      {
+        "skill": "network security",
+        "after_learning_score": 70.0,
+        "increase": 4
+      },
+      {
+        "skill": "penetration testing",
+        "after_learning_score": 77.0,
+        "increase": 7
+      },
+      {
+        "skill": "vulnerability scanning",
+        "after_learning_score": 81.0,
+        "increase": 4
+      }
+    ]
+  },
+  {
+    "job_title": "Cyber Analyst",
+    "scores": {
+      "final": 21.9,
+      "skill_match": 15.38,
+      "semantic": 37.12
+    },
+    "cv_skills": [
+      "SIEM",
+      "LINUX",
+      "WAF",
+      "Linux",
+      "Owasp",
+      "English",
+      "Python"
+    ],
+    "required_skills": [
+      "C#",
+      "Java",
+      "Linux",
+      "Python",
+      "SOC",
+      "Windows",
+      "application development",
+      "cloud infrastructure",
+      "databases",
+      "incident response",
+      "networking",
+      "reporting",
+      "triage"
+    ],
+    "missing_skills": [
+      "C#",
+      "Java",
+      "SOC",
+      "Windows",
+      "application development",
+      "cloud infrastructure",
+      "databases",
+      "incident response",
+      "networking",
+      "reporting",
+      "triage"
+    ],
+    "courses": [
+      {
+        "skill": "C#",
+        "course_name": "C# Programming Basics",
+        "platform": "Udemy",
+        "link": "https://www.udemy.com/course/csharp-basics/"
+      },
+      {
+        "skill": "Java",
+        "course_name": "Java Programming for Beginners",
+        "platform": "Coursera",
+        "link": "https://www.coursera.org/learn/java-programming"
+      },
+      {
+        "skill": "SOC",
+        "course_name": "SOC Operations",
+        "platform": "Cybrary",
+        "link": "https://www.cybrary.it/course/soc-operations/"
+      },
+      {
+        "skill": "Windows",
+        "course_name": "Windows Security",
+        "platform": "Pluralsight",
+        "link": "https://www.pluralsight.com/courses/windows-security"
+      },
+      {
+        "skill": "application development",
+        "course_name": "Secure Application Development",
+        "platform": "Coursera",
+        "link": "https://www.coursera.org/learn/secure-app-dev"
+      },
+      {
+        "skill": "cloud infrastructure",
+        "course_name": "Cloud Security Fundamentals",
+        "platform": "Udemy",
+        "link": "https://www.udemy.com/course/cloud-security/"
+      },
+      {
+        "skill": "databases",
+        "course_name": "Database Security Essentials",
+        "platform": "LinkedIn Learning",
+        "link": "https://www.linkedin.com/learning/database-security-essentials"
+      },
+      {
+        "skill": "incident response",
+        "course_name": "Incident Response and Handling",
+        "platform": "Coursera",
+        "link": "https://www.coursera.org/learn/incident-response"
+      },
+      {
+        "skill": "reporting",
+        "course_name": "Security Reporting and Metrics",
+        "platform": "Udemy",
+        "link": "https://www.udemy.com/course/security-reporting/"
+      },
+      {
+        "skill": "triage",
+        "course_name": "Incident Triage",
+        "platform": "Cybrary",
+        "link": "https://www.cybrary.it/course/incident-triage/"
+      }
+    ],
+    "learning_path": [
+      {
+        "skill": "C#",
+        "after_learning_score": 25.9,
+        "increase": 4
+      },
+      {
+        "skill": "Java",
+        "after_learning_score": 29.9,
+        "increase": 4
+      },
+      {
+        "skill": "SOC",
+        "after_learning_score": 36.9,
+        "increase": 7
+      },
+      {
+        "skill": "Windows",
+        "after_learning_score": 43.9,
+        "increase": 7
+      },
+      {
+        "skill": "application development",
+        "after_learning_score": 47.9,
+        "increase": 4
+      },
+      {
+        "skill": "cloud infrastructure",
+        "after_learning_score": 51.9,
+        "increase": 4
+      },
+      {
+        "skill": "databases",
+        "after_learning_score": 55.9,
+        "increase": 4
+      },
+      {
+        "skill": "incident response",
+        "after_learning_score": 59.9,
+        "increase": 4
+      },
+      {
+        "skill": "networking",
+        "after_learning_score": 63.9,
+        "increase": 4
+      },
+      {
+        "skill": "reporting",
+        "after_learning_score": 67.9,
+        "increase": 4
+      },
+      {
+        "skill": "triage",
+        "after_learning_score": 71.9,
+        "increase": 4
+      }
+    ]
+  }
+]
