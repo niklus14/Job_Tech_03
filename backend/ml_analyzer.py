@@ -8,6 +8,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 import os
 
 from models import JobMatch, ScoreBreakdown, CourseRecommendation, LearningPathStep, CVAnalysisResult
+from job_feed_loader import load_job_dataset as load_job_feed_dataset
 
 # Construct path to ML models
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -141,23 +142,14 @@ def load_job_dataset():
     global _cached_dataset
     if _cached_dataset is not None:
         return _cached_dataset
-        
-    # Only load cybersecurity for now (per plan)
-    path = os.path.join(BASE_DIR, "job_dataset.json")
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-            
-            # Pre-compute required skills for each job so we don't run the Random Forest
-            # 85 times per student when loading the course dashboard.
-            for item in data:
-                desc = item.get("description", "")
-                item["_cached_required_skills"] = predict_required_skills(desc)
-                
-            _cached_dataset = data
-            return _cached_dataset
-    except FileNotFoundError:
-        return []
+
+    data = load_job_feed_dataset()
+    for item in data:
+        desc = item.get("description", "")
+        item["_cached_required_skills"] = predict_required_skills(desc)
+
+    _cached_dataset = data
+    return _cached_dataset
 
 def analyze_cv_full(cv_file_obj, filename: str):
     dataset = load_job_dataset()
