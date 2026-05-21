@@ -10,28 +10,6 @@ This backend includes a Telegram channel collector powered by `Telethon`.
 - Avoids duplicate inserts by checking existing message IDs
 - Runs automatically every 10 minutes when started in scheduler mode
 
-## Configuration
-
-1. Add Telegram API credentials to `backend/.env`:
-
-```bash
-TELEGRAM_API_ID=your_api_id
-TELEGRAM_API_HASH=your_api_hash
-```
-
-2. Configure channels in `backend/telegram_channels.json`:
-
-```json
-[
-  "t.me/crjaz"
-]
-```
-
-You can also override channels with the environment variable `TELEGRAM_CHANNELS`:
-
-```bash
-TELEGRAM_CHANNELS="t.me/crjaz, t.me/another_channel"
-```
 
 ## Run the collector
 
