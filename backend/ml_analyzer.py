@@ -3,7 +3,6 @@ from spacy.matcher import PhraseMatcher
 import json
 import pickle
 import PyPDF2
-from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 import os
 
@@ -21,11 +20,22 @@ except OSError:
     print("WARNING: en_core_web_sm model not found. Proceeding without NLP.")
     nlp = None
 
-try:
-    sbert_model = SentenceTransformer('all-MiniLM-L6-v2')
-except Exception as e:
-    print(f"WARNING: SentenceTransformer not loaded. {e}")
-    sbert_model = None
+sbert_model = None
+_sbert_load_attempted = False
+
+def get_sbert_model():
+    global sbert_model, _sbert_load_attempted
+    if _sbert_load_attempted:
+        return sbert_model
+
+    _sbert_load_attempted = True
+    try:
+        from sentence_transformers import SentenceTransformer
+        sbert_model = SentenceTransformer('all-MiniLM-L6-v2')
+    except Exception as e:
+        print(f"WARNING: SentenceTransformer not loaded. {e}")
+        sbert_model = None
+    return sbert_model
 
 try:
     skill_model = pickle.load(open(os.path.join(MODELS_DIR, "skill_model.pkl"), "rb"))
@@ -80,9 +90,10 @@ def predict_required_skills(job_description):
     return list(mlb.inverse_transform(y_pred)[0])
 
 def calculate_semantic_score(cv_text, job_description):
-    if not sbert_model:
+    model = get_sbert_model()
+    if not model:
         return 0.0
-    emb = sbert_model.encode([cv_text, job_description])
+    emb = model.encode([cv_text, job_description])
     score = cosine_similarity([emb[0]], [emb[1]])[0][0]
     return round(max(0.0, float(score) * 100), 2)
 
