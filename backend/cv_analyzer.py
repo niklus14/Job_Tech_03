@@ -56,10 +56,7 @@ SKILL_KEYWORDS = {
 }
 
 # ─── Load job dataset ───
-def load_job_dataset() -> list:
-    dataset_path = os.path.join(os.path.dirname(__file__), "job_dataset.json")
-    with open(dataset_path, "r", encoding="utf-8") as f:
-        return json.load(f)
+from job_feed_loader import load_job_dataset
 
 
 def extract_text_from_pdf(file_path: str) -> str:

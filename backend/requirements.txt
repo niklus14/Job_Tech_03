@@ -9,3 +9,4 @@ spacy
 scikit-learn
 sentence-transformers
 torch
+telethon
