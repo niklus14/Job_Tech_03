@@ -30,10 +30,11 @@ def _check_free_limit():
 @router.post("/upload-cv", response_model=CVAnalysisResult)
 async def upload_and_analyze_cv(
     file: UploadFile = File(...),
-    tier: str = Form(default="free")
+    tier: str = Form(default="free"),
+    target_category: str = Form(default="cybersecurity")
 ):
     """
-    Upload a PDF CV and analyze it against the cybersecurity job dataset.
+    Upload a PDF CV and analyze it against the job dataset.
     tier: "free" or "pro"
     """
     if tier == "free":
@@ -53,7 +54,7 @@ async def upload_and_analyze_cv(
             shutil.copyfileobj(file.file, buffer)
 
         with open(file_path, "rb") as f:
-            result = analyze_cv_full(f, file.filename)
+            result = analyze_cv_full(f, file.filename, target_category=target_category)
 
         # Add plan info
         if tier == "free":
@@ -119,7 +120,8 @@ def list_sample_cvs():
 @router.post("/analyze-sample", response_model=CVAnalysisResult)
 async def analyze_sample_cv(
     filename: str = Form(...),
-    tier: str = Form(default="free")
+    tier: str = Form(default="free"),
+    target_category: str = Form(default="cybersecurity")
 ):
     """Analyze one of the preloaded sample CVs."""
     if tier == "free":
@@ -138,7 +140,7 @@ async def analyze_sample_cv(
 
     try:
         with open(file_path, "rb") as f:
-            result = analyze_cv_full(f, filename)
+            result = analyze_cv_full(f, filename, target_category=target_category)
 
         if tier == "free":
             count = _usage.get(str(__import__('datetime').date.today()), 0)

@@ -1,11 +1,13 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
+import axios from 'axios';
 import {
   Upload, FileText, Target, Briefcase, Sparkles,
   ChevronRight, ExternalLink, AlertTriangle, CheckCircle,
   Lightbulb, Clock, MapPin, Building, Lock, Crown,
   BookOpen, TrendingUp, ArrowRight, Zap
 } from 'lucide-react';
-import { jobCategories, SAMPLE_CVS, generateMockAnalysis } from '../data/mockAnalysis';
+import { jobCategories } from '../data/jobMeta';
+import { API_URL } from '../apiConfig';
 
 function ScoreGauge({ score, label, size = 160 }) {
   const radius = size * 0.4;
@@ -72,7 +74,15 @@ export default function IndividualDashboard({ tier = 'free', onShowPricing }) {
   const isPro = tier === 'pro';
 
   useEffect(() => {
-    setSampleCvs(SAMPLE_CVS);
+    const fetchSamples = async () => {
+      try {
+        const res = await axios.get(`${API_URL}/individual/sample-cvs`);
+        setSampleCvs(res.data.samples || []);
+      } catch (err) {
+        console.warn('Sample CVs unavailable', err);
+      }
+    };
+    fetchSamples();
   }, []);
 
   const handleDragOver = useCallback((e) => {
@@ -126,12 +136,22 @@ export default function IndividualDashboard({ tier = 'free', onShowPricing }) {
     setShareLink('');
     setCopyMessage('');
 
-    const fileName = selectedFile.name || 'resume.pdf';
-    const result = generateMockAnalysis(fileName, selectedCategories);
-    const latest = { ...result, analyzed_at: new Date().toISOString() };
-    setAnalysis(latest);
-    setHistory((prev) => [latest, ...prev].slice(0, 5));
-    setLoading(false);
+    const formData = new FormData();
+    formData.append('file', selectedFile);
+    formData.append('tier', tier);
+    try {
+      formData.append('target_category', selectedCategories.join(','));
+      const res = await axios.post(`${API_URL}/individual/upload-cv`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      const latest = { ...res.data, analyzed_at: new Date().toISOString() };
+      setAnalysis(latest);
+      setHistory((prev) => [latest, ...prev].slice(0, 5));
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleAnalyzeSample = (filename) => {
@@ -140,16 +160,27 @@ export default function IndividualDashboard({ tier = 'free', onShowPricing }) {
     setSelectedFile({ name: filename, isSample: true });
     setShareLink('');
     setCopyMessage('');
-    const result = generateMockAnalysis(filename, ['backend', 'data-analyst', 'fullstack']);
-    const latest = { ...result, analyzed_at: new Date().toISOString() };
-    setAnalysis(latest);
-    setHistory((prev) => [latest, ...prev].slice(0, 5));
-    setLoading(false);
+    (async () => {
+      const formData = new FormData();
+      formData.append('filename', filename);
+      formData.append('tier', tier);
+      formData.append('target_category', selectedCategories.join(','));
+      try {
+        const res = await axios.post(`${API_URL}/individual/analyze-sample`, formData);
+        const latest = { ...res.data, analyzed_at: new Date().toISOString() };
+        setAnalysis(latest);
+        setHistory((prev) => [latest, ...prev].slice(0, 5));
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    })();
   };
 
   const handleCopyLink = async () => {
     if (!analysis) return;
-    const link = `${window.location.origin}${window.location.pathname}?report=${encodeURIComponent(analysis.fileName)}`;
+    const link = `${window.location.origin}${window.location.pathname}?report=${encodeURIComponent(analysis.filename)}`;
     setShareLink(link);
     try {
       await navigator.clipboard.writeText(link);
@@ -162,6 +193,7 @@ export default function IndividualDashboard({ tier = 'free', onShowPricing }) {
   const getScoreClass = (pct) => (pct >= 70 ? 'high' : pct >= 40 ? 'medium' : 'low');
 
   const selectedCategoryObjects = jobCategories.filter((category) => selectedCategories.includes(category.id));
+  const resultCategoryLabel = jobCategories.find((category) => category.id === analysis?.target_category)?.label || analysis?.target_category || 'Selected fields';
 
   return (
     <div className="animate-fade-in">
@@ -265,94 +297,40 @@ export default function IndividualDashboard({ tier = 'free', onShowPricing }) {
 
       {analysis && (
         <div className="animate-scale-in">
-          <div className="grid-3" style={{ marginBottom: '1.5rem' }}>
-            <div className="glass-card" style={{ textAlign: 'center' }}>
-              <h3 style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
-                <Target size={18} style={{ color: 'var(--accent-primary)' }} /> Overall Fit
-              </h3>
-              <ScoreGauge score={Math.round(analysis.overall_score)} label="Final Fit Score" />
-              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
-                Multi-category scoring across {analysis.selected_categories.length} fields.
-              </p>
-            </div>
-
-            <div className="glass-card" style={{ textAlign: 'center' }}>
-              <h3 style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
-                <Zap size={18} style={{ color: '#8b5cf6' }} /> Semantic Match
-              </h3>
-              <ScoreGauge score={Math.round(analysis.semantic_score)} label="Context Match" size={140} />
-              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
-                How well your CV meaningfully aligns with live job descriptions.
-              </p>
-            </div>
-
-            <div className="glass-card" style={{ textAlign: 'center' }}>
-              <h3 style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
-                <CheckCircle size={18} style={{ color: 'var(--success)' }} /> Skill Match
-              </h3>
-              <ScoreGauge score={Math.round(analysis.skill_match_score)} label="Skill Coverage" size={140} />
-              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
-                Match percentage based on extracted skills versus employer requirements.
-              </p>
-            </div>
-          </div>
-
           <div className="grid-2" style={{ marginBottom: '1.5rem' }}>
             <div className="glass-card">
               <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <CheckCircle size={18} style={{ color: 'var(--success)' }} /> Extracted Skills & Proficiency
+                <Target size={18} style={{ color: 'var(--accent-primary)' }} /> Overall Job Fit
               </h3>
-              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
-                Skills detected from your CV and classified into proficiency bands.
-              </p>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
-                {analysis.extracted_skills.map((item, index) => (
-                  <div key={index} className="skill-chip">
-                    <div>{item.skill}</div>
-                    <div className={`skill-level ${item.level.toLowerCase()}`}>{item.level}</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap', marginTop: '1rem' }}>
+                <div className="metric-value" style={{ fontSize: '3rem' }}>{Math.round(analysis.overall_score)}</div>
+                <div>
+                  <div className="metric-label">Fit score</div>
+                  <div style={{ marginTop: '0.75rem', color: 'var(--text-secondary)' }}>
+                    Based on your CV and the latest Telegram-derived job postings.
                   </div>
-                ))}
+                  <div style={{ marginTop: '0.75rem', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                    Target fields: {resultCategoryLabel}
+                  </div>
+                </div>
               </div>
+              <p style={{ marginTop: '1.5rem', color: 'var(--text-secondary)', fontSize: '0.95rem' }}>
+                {analysis.summary || 'Your CV has been matched to active roles in the market using available skills and job descriptions.'}
+              </p>
             </div>
 
             <div className="glass-card">
               <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <Lightbulb size={18} style={{ color: 'var(--warning)' }} /> Progress Tracker
+                <CheckCircle size={18} style={{ color: 'var(--success)' }} /> Extracted Skills
               </h3>
               <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
-                Every CV upload refreshes your skill map and readiness score automatically.
+                Skills found in your CV that are being matched against live job requirements.
               </p>
-              <div className="progress-summary">
-                <div>
-                  <div className="metric-label">Last updated</div>
-                  <div style={{ fontSize: '1rem', fontWeight: 700, marginTop: '0.35rem' }}>
-                    {new Date(analysis.analyzed_at).toLocaleString()}
-                  </div>
-                </div>
-                <div>
-                  <div className="metric-label">Current score</div>
-                  <div style={{ fontSize: '1.5rem', fontWeight: 700, marginTop: '0.35rem', color: 'var(--accent-primary)' }}>
-                    {Math.round(analysis.overall_score)}%
-                  </div>
-                </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
+                {analysis.extracted_skills.map((skill, index) => (
+                  <span key={index} className="pill accent">{skill}</span>
+                ))}
               </div>
-              {history.length > 1 && (
-                <div style={{ marginTop: '1rem' }}>
-                  <div className="metric-label" style={{ marginBottom: '0.5rem' }}>Recent uploads</div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    {history.slice(0, 3).map((item, idx) => (
-                      <div key={idx} className="timeline-entry">
-                        <div>{new Date(item.analyzed_at).toLocaleDateString()}</div>
-                        <div>{Math.round(item.overall_score)}%</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-              <button className="btn-outline" onClick={handleCopyLink} style={{ marginTop: '1rem' }}>
-                <ExternalLink size={14} /> Copy Shareable Report Link
-              </button>
-              {copyMessage && <div style={{ marginTop: '0.75rem', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{copyMessage}</div>}
             </div>
           </div>
 
@@ -360,10 +338,10 @@ export default function IndividualDashboard({ tier = 'free', onShowPricing }) {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
               <div>
                 <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <Briefcase size={18} style={{ color: 'var(--accent-secondary)' }} /> Top 10 Job Matches
+                  <Briefcase size={18} style={{ color: 'var(--accent-secondary)' }} /> Top Job Matches
                 </h3>
-                <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
-                  Live-alike job match scores based on your skill profile and target categories.
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
+                  Live Telegram job postings matched with your CV.
                 </p>
               </div>
               <div className="pill" style={{ background: 'rgba(59, 130, 246, 0.08)', color: 'var(--accent-primary)' }}>
@@ -402,62 +380,38 @@ export default function IndividualDashboard({ tier = 'free', onShowPricing }) {
                       </div>
                     </div>
                   </div>
-                  <a href={job.url} target="_blank" rel="noopener noreferrer" className="course-link" style={{ marginTop: '1rem', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
-                    View sample job posting <ExternalLink size={12} />
-                  </a>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="glass-card" style={{ marginBottom: '1.5rem', borderLeft: '4px solid var(--success)' }}>
-            <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <TrendingUp size={18} style={{ color: 'var(--success)' }} /> 30/60/90-Day Skill Plan
-            </h3>
-            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
-              Personalized milestones for the next 3 months based on your current skill fit and missing abilities.
-            </p>
-            <div className="learning-path">
-              {analysis.learning_path.map((phase, idx) => (
-                <div key={idx} className="path-card">
-                  <div className="path-card-header">
-                    <div style={{ fontWeight: 700 }}>{phase.phase}</div>
-                    <div className="skill-badge">+{phase.increase}%</div>
-                  </div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '0.75rem' }}>
-                    {phase.skills.map((skill, j) => (
-                      <span key={j} className="pill accent">{skill}</span>
-                    ))}
-                  </div>
-                  <div style={{ marginTop: '1rem', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-                    Estimated score after phase: <strong>{phase.after_learning_score}%</strong>
+                  <div style={{ marginTop: '1rem', display: 'grid', gap: '0.5rem' }}>
+                    {job.url && (
+                      <a href={job.url} target="_blank" rel="noopener noreferrer" className="course-link" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+                        View job posting <ExternalLink size={12} />
+                      </a>
+                    )}
+                    {job.hr_emails && job.hr_emails.length > 0 && (
+                      <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                        HR contacts: {job.hr_emails.join(', ')}
+                      </div>
+                    )}
+                    {job.salary && job.salary.raw && (
+                      <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                        Salary: {job.salary.raw} {job.salary.currency}
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
             </div>
           </div>
 
-          <div className="glass-card" style={{ borderLeft: '4px solid rgba(247, 191, 0, 0.4)' }}>
-            <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <BookOpen size={18} style={{ color: 'var(--warning)' }} /> Skill Gap Simulation
-            </h3>
-            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
-              If you learn these key skills, your match score improves accordingly.
-            </p>
-            <div style={{ display: 'grid', gap: '1rem' }}>
-              {analysis.skill_gap_simulation.map((item, index) => (
-                <div key={index} className="sim-card">
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', alignItems: 'center' }}>
-                    <div style={{ fontWeight: 700 }}>{item.skill}</div>
-                    <div className="skill-badge">+{item.increase}%</div>
-                  </div>
-                  <div style={{ marginTop: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-                    Projected overall score: <strong>{item.projected_score}%</strong>
-                  </div>
-                </div>
-              ))}
+          {analysis.plan && (
+            <div className="glass-card" style={{ borderLeft: '4px solid var(--warning)' }}>
+              <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <BookOpen size={18} style={{ color: 'var(--warning)' }} /> Next Steps
+              </h3>
+              <p style={{ marginTop: '0.75rem', color: 'var(--text-secondary)' }}>
+                Your plan allows {analysis.plan.analyses_today}/{analysis.plan.analyses_limit} free CV reviews today.
+              </p>
             </div>
-          </div>
+          )}
         </div>
       )}
 

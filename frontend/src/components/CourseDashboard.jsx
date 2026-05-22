@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
+import axios from 'axios';
 import {
   Building, Users, Upload, TrendingUp, BarChart2, 
   ChevronRight, AlertTriangle, CheckCircle, Target,
   BookOpen, ArrowRight, Layers, Zap, FileText,
   Link, Key, RefreshCw, Wifi
 } from 'lucide-react';
-import { dashboardStats as initialDashboardStats, students as initialStudents } from '../data/mockCourseData';
+import { API_URL } from '../apiConfig';
 
 
 function MiniProgress({ value, color = 'blue', width = '100%' }) {
@@ -29,8 +30,8 @@ function CombinedScoreBadge({ score }) {
 
 export default function CourseDashboard() {
   const [activeView, setActiveView] = useState('overview');
-  const [students, setStudents] = useState(initialStudents);
-  const [dashStats, setDashStats] = useState(initialDashboardStats);
+  const [students, setStudents] = useState([]);
+  const [dashStats, setDashStats] = useState(null);
   const [loading, setLoading] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [uploading, setUploading] = useState(false);
@@ -38,19 +39,39 @@ export default function CourseDashboard() {
   const [studentImportError, setStudentImportError] = useState('');
   const fileInputRef = useRef(null);
 
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const [statsRes, studentsRes] = await Promise.all([
+        axios.get(`${API_URL}/course/dashboard`),
+        axios.get(`${API_URL}/course/students`)
+      ]);
+      setDashStats(statsRes.data);
+      setStudents(studentsRes.data);
+      return statsRes.data;
+    } catch (err) {
+      console.error('Course data fetch failed', err);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    setDashStats(initialDashboardStats);
-    setStudents(initialStudents);
+    fetchData().catch(() => {});
   }, []);
 
-  const fetchData = () => {
-    setLoading(true);
-    setTimeout(() => {
-      setStudents(initialStudents);
-      setDashStats(initialDashboardStats);
-      setLoading(false);
-    }, 200);
-  };
+  if (loading || !dashStats) {
+    return (
+      <div className="animate-fade-in">
+        <div className="glass-card" style={{ textAlign: 'center', padding: '3rem' }}>
+          <span className="spinner" style={{ width: 40, height: 40, borderWidth: 3 }}></span>
+          <h3 style={{ marginTop: '1rem', color: 'var(--text-secondary)' }}>Loading course analytics...</h3>
+        </div>
+      </div>
+    );
+  }
+
 
   const handleUploadStudents = async (e) => {
     const file = e.target.files[0];
@@ -97,12 +118,24 @@ export default function CourseDashboard() {
     }
   };
 
-  const handleSyncApi = () => {
-    setSyncResult({
-      message: 'Demo sync simulated. Your local dataset is shown below.',
-      total_students: students.length,
-      errors: []
-    });
+  const handleSyncApi = async () => {
+    setLoading(true);
+    try {
+      const stats = await fetchData();
+      setSyncResult({
+        message: 'Course dashboard refreshed from live backend data.',
+        total_students: stats?.total_students ?? students.length,
+        errors: []
+      });
+    } catch (err) {
+      setSyncResult({
+        message: 'Live sync failed. Using cached course data.',
+        total_students: students.length,
+        errors: [err.message]
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (loading) {
@@ -191,22 +224,22 @@ export default function CourseDashboard() {
                 Connect Your LMS
               </h3>
               <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>
-                This demo uses local mock student data. Simulate a sync to refresh the dashboard without requiring an external endpoint.
+                This dashboard is backed by the backend student analytics endpoints. Refresh to pull the latest cohort readiness data.
               </p>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 <div className="pill accent" style={{ alignSelf: 'flex-start', padding: '0.75rem 1rem' }}>
-                  Local Demo Mode
+                  Backend Analytics
                 </div>
                 <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: 1.6 }}>
-                  Upload student JSON data to preview course analytics, or press "Simulate Data Sync" to refresh the current demo dataset.
+                  Upload student JSON data to preview course analytics, or press "Refresh Data" to pull the latest cohort readiness metrics from the backend.
                 </div>
                 <button
                   className="btn"
                   onClick={handleSyncApi}
                   style={{ width: '100%', justifyContent: 'center' }}
                 >
-                  <RefreshCw size={16} /> Simulate Data Sync
+                  <RefreshCw size={16} /> Refresh Data
                 </button>
               </div>
 
@@ -238,7 +271,7 @@ export default function CourseDashboard() {
                     🎓
                   </div>
                   <div>
-                    <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>Local Demo Data</div>
+                    <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>Sample Student Data</div>
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Built-in sample students and analytics</div>
                   </div>
                   <span className="pill success" style={{ marginLeft: 'auto', fontSize: '0.7rem' }}>Demo</span>

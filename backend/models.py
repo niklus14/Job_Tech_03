@@ -33,6 +33,7 @@ class MarketInsight(BaseModel):
     top_roles: List[str]
     top_skills: List[dict]
     trend_summary: str
+    salary_range: Optional[str] = None
 
 class CohortInsight(BaseModel):
     cohort_id: str
@@ -81,6 +82,10 @@ class JobMatch(BaseModel):
     courses: Optional[List[CourseRecommendation]] = None
     learning_path: Optional[List[LearningPathStep]] = None
     url: Optional[str] = None
+    salary: Optional[dict] = None
+    requirements: Optional[List[str]] = None
+    duties: Optional[List[str]] = None
+    hr_emails: Optional[List[str]] = None
 
 class CVAnalysisResult(BaseModel):
     filename: str

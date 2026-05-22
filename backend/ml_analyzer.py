@@ -162,7 +162,7 @@ def load_job_dataset():
     _cached_dataset = data
     return _cached_dataset
 
-def analyze_cv_full(cv_file_obj, filename: str):
+def analyze_cv_full(cv_file_obj, filename: str, target_category: str = "cybersecurity"):
     dataset = load_job_dataset()
     cv_text = extract_text_from_pdf(cv_file_obj)
     cv_skills = extract_skills(cv_text)
@@ -218,7 +218,7 @@ def analyze_cv_full(cv_file_obj, filename: str):
     
     return CVAnalysisResult(
         filename=filename,
-        target_category="cybersecurity",
+        target_category=target_category,
         extracted_skills=cv_skills,
         overall_score=overall_score,
         top_matches=top_matches,
@@ -234,7 +234,6 @@ def filter_for_free_tier(analysis_result: CVAnalysisResult) -> CVAnalysisResult:
         match.required_skills = None
         match.courses = None
         match.learning_path = None
-        match.url = None
         # Only show up to 3 missing skills
         match.missing_skills = match.missing_skills[:3]
         

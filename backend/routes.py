@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from typing import List
 from models import StudentProfile, ReadinessScore, Recommendation, MarketInsight, CohortInsight
+from job_feed_loader import load_job_dataset
 import mock_data
 
 router = APIRouter()
@@ -40,7 +41,46 @@ def analyze_student(profile: StudentProfile):
 
 @router.get("/market/insights", response_model=MarketInsight)
 def get_market_insights():
-    return mock_data.mock_market_insight
+    dataset = load_job_dataset()
+    if not dataset:
+        return mock_data.mock_market_insight
+
+    title_counts = {}
+    skill_counts = {}
+    salary_values = []
+    for item in dataset:
+        title = item.get("title_normalized_en") or item.get("title_original") or "Unknown Role"
+        title_counts[title] = title_counts.get(title, 0) + 1
+        for skill in item.get("skills", []):
+            skill_counts[skill] = skill_counts.get(skill, 0) + 1
+        salary = item.get("salary") or {}
+        if isinstance(salary, dict) and salary.get("avg"):
+            salary_values.append(salary["avg"])
+
+    top_roles = [title for title, _ in sorted(title_counts.items(), key=lambda x: x[1], reverse=True)][:6]
+    top_skills = [
+        {"skill": skill, "demand_growth": min(90, int(count * 3))}
+        for skill, count in sorted(skill_counts.items(), key=lambda x: x[1], reverse=True)[:6]
+    ]
+    if salary_values:
+        avg_salary = int(sum(salary_values) / len(salary_values))
+        salary_range = f"₼ {avg_salary - 300} - {avg_salary + 300}" if avg_salary >= 300 else f"₼ {avg_salary}"
+    else:
+        salary_range = "₼ 1K - 2K"
+
+    trend_summary = (
+        f"Telegram-sourced job posts show a strong hiring pulse in data and security roles. "
+        f"The top roles include {', '.join(top_roles[:3])}. "
+        f"Most live openings mention skills like {', '.join([item['skill'] for item in top_skills[:3]])}. "
+        f"Estimated junior salary range across visible posts is {salary_range}."
+    )
+
+    return MarketInsight(
+        top_roles=top_roles,
+        top_skills=top_skills,
+        trend_summary=trend_summary,
+        salary_range=salary_range
+    )
 
 @router.get("/admin/cohort-gap", response_model=CohortInsight)
 def get_cohort_gap():

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { TrendingUp, Users, MapPin, Briefcase, ChevronUp } from 'lucide-react';
 
-const API_URL = 'https://eren14-newteam.hf.space';
+import { API_URL } from '../apiConfig';
 
 export default function MarketDashboard() {
   const [data, setData] = useState(null);
@@ -56,7 +56,7 @@ export default function MarketDashboard() {
             </div>
             <div>
               <div className="metric-label">Avg Range (Junior)</div>
-              <div className="metric-value" style={{ fontSize: '2rem' }}>₼ 1K - 2K</div>
+              <div className="metric-value" style={{ fontSize: '2rem' }}>{data.salary_range || '₼ 1K - 2K'}</div>
             </div>
           </div>
         </div>
