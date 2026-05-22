@@ -1,33 +1,32 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import axios from 'axios';
 import {
   Upload, FileText, Target, Briefcase, Sparkles,
   ChevronRight, ExternalLink, AlertTriangle, CheckCircle,
   Lightbulb, Clock, MapPin, Building, Lock, Crown,
   BookOpen, TrendingUp, ArrowRight, Zap
 } from 'lucide-react';
-
-const API_URL = 'https://eren14-newteam.hf.space';
+import { jobCategories, SAMPLE_CVS, generateMockAnalysis } from '../data/mockAnalysis';
 
 function ScoreGauge({ score, label, size = 160 }) {
   const radius = size * 0.4;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference - (score / 100) * circumference;
-  const center = size / 2;
 
   const getColor = (s) => {
-    if (s >= 70) return '#10b981';
-    if (s >= 40) return '#f59e0b';
+    if (s >= 75) return '#10b981';
+    if (s >= 45) return '#f59e0b';
     return '#ef4444';
   };
 
   return (
     <div className="score-gauge">
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-        <circle className="score-gauge-track" cx={center} cy={center} r={radius} />
+        <circle className="score-gauge-track" cx={size / 2} cy={size / 2} r={radius} />
         <circle
           className="score-gauge-fill"
-          cx={center} cy={center} r={radius}
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
           stroke={getColor(score)}
           strokeDasharray={circumference}
           strokeDashoffset={offset}
@@ -43,7 +42,7 @@ function ScoreGauge({ score, label, size = 160 }) {
   );
 }
 
-function BlurOverlay({ children, isLocked, onUpgrade, label = "Pro Feature" }) {
+function BlurOverlay({ children, isLocked, onUpgrade, label = 'Pro Feature' }) {
   if (!isLocked) return children;
   return (
     <div className="blur-wrapper">
@@ -64,187 +63,162 @@ export default function IndividualDashboard({ tier = 'free', onShowPricing }) {
   const [isDragging, setIsDragging] = useState(false);
   const [loading, setLoading] = useState(false);
   const [analysis, setAnalysis] = useState(null);
-  const [recommendations, setRecommendations] = useState(null);
-  const [loadingRecs, setLoadingRecs] = useState(false);
+  const [history, setHistory] = useState([]);
   const [sampleCvs, setSampleCvs] = useState([]);
+  const [selectedCategories, setSelectedCategories] = useState(['cybersecurity']);
+  const [shareLink, setShareLink] = useState('');
+  const [copyMessage, setCopyMessage] = useState('');
   const fileInputRef = useRef(null);
   const isPro = tier === 'pro';
 
   useEffect(() => {
-    axios.get(`${API_URL}/individual/sample-cvs`)
-      .then(res => setSampleCvs(res.data.samples || []))
-      .catch(() => {});
+    setSampleCvs(SAMPLE_CVS);
   }, []);
 
-  const handleDragOver = useCallback((e) => { e.preventDefault(); setIsDragging(true); }, []);
-  const handleDragLeave = useCallback((e) => { e.preventDefault(); setIsDragging(false); }, []);
+  const handleDragOver = useCallback((e) => {
+    e.preventDefault();
+    setIsDragging(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e) => {
+    e.preventDefault();
+    setIsDragging(false);
+  }, []);
+
   const handleDrop = useCallback((e) => {
-    e.preventDefault(); setIsDragging(false);
+    e.preventDefault();
+    setIsDragging(false);
     const files = e.dataTransfer.files;
     if (files.length > 0 && files[0].type === 'application/pdf') {
-      setSelectedFile(files[0]); setAnalysis(null); setRecommendations(null);
+      setSelectedFile(files[0]);
+      setAnalysis(null);
+      setShareLink('');
+      setCopyMessage('');
     }
   }, []);
 
   const handleFileSelect = (e) => {
     const file = e.target.files[0];
-    if (file) { setSelectedFile(file); setAnalysis(null); setRecommendations(null); }
+    if (file && file.type === 'application/pdf') {
+      setSelectedFile(file);
+      setAnalysis(null);
+      setShareLink('');
+      setCopyMessage('');
+    }
+  };
+
+  const handleToggleCategory = (categoryId) => {
+    setSelectedCategories((prev) => {
+      const next = prev.includes(categoryId)
+        ? prev.filter((item) => item !== categoryId)
+        : [...prev, categoryId];
+      return next.length === 0 ? ['cybersecurity'] : next;
+    });
+    setAnalysis(null);
+    setShareLink('');
+    setCopyMessage('');
   };
 
   const handleAnalyze = async () => {
     if (!selectedFile) return;
-    setLoading(true); setAnalysis(null); setRecommendations(null);
-    try {
-      const formData = new FormData();
-      formData.append('file', selectedFile);
-      formData.append('tier', tier);
-      const res = await axios.post(`${API_URL}/individual/upload-cv`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-      setAnalysis(res.data);
-    } catch (err) {
-      if (err.response?.status === 429) {
-        alert('Free tier limit reached (3/day). Upgrade to Pro for unlimited!');
-      } else {
-        console.error('Analysis error:', err);
-        alert('Error analyzing CV.');
-      }
-    }
+    setLoading(true);
+    setAnalysis(null);
+    setShareLink('');
+    setCopyMessage('');
+
+    const fileName = selectedFile.name || 'resume.pdf';
+    const result = generateMockAnalysis(fileName, selectedCategories);
+    const latest = { ...result, analyzed_at: new Date().toISOString() };
+    setAnalysis(latest);
+    setHistory((prev) => [latest, ...prev].slice(0, 5));
     setLoading(false);
   };
 
-  const handleAnalyzeSample = async (filename) => {
-    setLoading(true); setAnalysis(null); setRecommendations(null);
+  const handleAnalyzeSample = (filename) => {
+    setLoading(true);
+    setAnalysis(null);
     setSelectedFile({ name: filename, isSample: true });
-    try {
-      const formData = new FormData();
-      formData.append('filename', filename);
-      formData.append('tier', tier);
-      const res = await axios.post(`${API_URL}/individual/analyze-sample`, formData);
-      setAnalysis(res.data);
-    } catch (err) {
-      if (err.response?.status === 429) {
-        alert('Free tier limit reached (3/day). Upgrade to Pro for unlimited!');
-      } else {
-        console.error('Sample analysis error:', err);
-      }
-    }
+    setShareLink('');
+    setCopyMessage('');
+    const result = generateMockAnalysis(filename, ['backend', 'data-analyst', 'fullstack']);
+    const latest = { ...result, analyzed_at: new Date().toISOString() };
+    setAnalysis(latest);
+    setHistory((prev) => [latest, ...prev].slice(0, 5));
     setLoading(false);
   };
 
-  const handleGetRecommendations = async () => {
+  const handleCopyLink = async () => {
     if (!analysis) return;
-    setLoadingRecs(true);
+    const link = `${window.location.origin}${window.location.pathname}?report=${encodeURIComponent(analysis.fileName)}`;
+    setShareLink(link);
     try {
-      const res = await axios.post(`${API_URL}/individual/recommend`);
-      setRecommendations(res.data);
-    } catch (err) { console.error('Recommendation error:', err); }
-    setLoadingRecs(false);
+      await navigator.clipboard.writeText(link);
+      setCopyMessage('Share link copied to clipboard!');
+    } catch {
+      setCopyMessage('Copy failed. Use this link manually.');
+    }
   };
 
-  const getScoreClass = (pct) => pct >= 70 ? 'high' : pct >= 40 ? 'medium' : 'low';
+  const getScoreClass = (pct) => (pct >= 70 ? 'high' : pct >= 40 ? 'medium' : 'low');
+
+  const selectedCategoryObjects = jobCategories.filter((category) => selectedCategories.includes(category.id));
 
   return (
     <div className="animate-fade-in">
-      {/* Header */}
       <div className="section-header">
         <div>
           <h2 style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', border: 'none', paddingBottom: 0 }}>
             <Target size={24} style={{ color: 'var(--accent-primary)' }} />
             Individual Career Intelligence
-            {!isPro && (
-              <span className="tier-badge free">Free</span>
-            )}
-            {isPro && (
-              <span className="tier-badge pro">⭐ Pro</span>
-            )}
+            <span className={`tier-badge ${isPro ? 'pro' : 'free'}`}>{isPro ? '⭐ Pro' : 'Free'}</span>
           </h2>
-          <p className="text-secondary">Upload your CV and discover your job market fit in Azerbaijan • Cybersecurity</p>
+          <p className="text-secondary">Upload a PDF CV, choose your target career fields, and get instant skill match analytics.</p>
         </div>
-        {analysis?.plan && !isPro && (
-          <div className="usage-badge">
-            {analysis.plan.analyses_today} / {analysis.plan.analyses_limit} free today
-          </div>
-        )}
       </div>
 
-      {/* Upload zone */}
+      <div className="glass-card" style={{ marginBottom: '1.5rem' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1rem' }}>
+          {jobCategories.map((category) => (
+            <button
+              key={category.id}
+              type="button"
+              className={`category-chip ${selectedCategories.includes(category.id) ? 'active' : ''}`}
+              onClick={() => handleToggleCategory(category.id)}
+            >
+              <span>{category.emoji}</span>
+              <span>{category.label}</span>
+            </button>
+          ))}
+        </div>
+        <div className="text-secondary" style={{ fontSize: '0.9rem' }}>
+          Selected fields: {selectedCategoryObjects.map((category) => category.label).join(', ')}.
+          The analysis adapts to the job categories you care about.
+        </div>
+      </div>
+
       <div className="grid-2" style={{ marginBottom: '1.5rem' }}>
-        {/* Left: Cybersecurity info + samples */}
         <div className="glass-card">
           <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1rem' }}>
-            <Briefcase size={18} style={{ color: 'var(--accent-secondary)' }} />
-            Target Field: Cybersecurity
+            <Briefcase size={18} style={{ color: 'var(--accent-secondary)' }} /> Selected Target Fields
           </h3>
-
-          {/* Field selector icons */}
-          <div style={{ marginTop: '1rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-            {/* ── Active: Cybersecurity ── */}
-            <div style={{
-              flex: '1 1 0', minWidth: 90, padding: '0.75rem 0.5rem', borderRadius: '10px',
-              border: '2px solid var(--accent-primary)', background: 'rgba(59, 130, 246, 0.1)',
-              textAlign: 'center', cursor: 'default',
-            }}>
-              <div style={{ fontSize: '1.8rem', marginBottom: '0.25rem' }}>🛡️</div>
-              <div style={{ fontSize: '0.85rem', fontWeight: 700 }}>Cybersecurity</div>
-            </div>
-
-            {/* ── Decorative: ML ── */}
-            <button type="button" onClick={() => {}} style={{
-              flex: '1 1 0', minWidth: 90, padding: '0.75rem 0.5rem', borderRadius: '10px',
-              border: '2px solid rgba(139,92,246,0.3)', background: 'rgba(139,92,246,0.05)',
-              textAlign: 'center', cursor: 'pointer', opacity: 0.7,
-              transition: 'all 0.2s', color: 'inherit', fontFamily: 'inherit',
-            }}
-              onMouseEnter={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.borderColor = 'rgba(139,92,246,0.6)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
-              onMouseLeave={e => { e.currentTarget.style.opacity = '0.7'; e.currentTarget.style.borderColor = 'rgba(139,92,246,0.3)'; e.currentTarget.style.transform = 'none'; }}
-            >
-              <div style={{ fontSize: '1.8rem', marginBottom: '0.25rem' }}>🤖</div>
-              <div style={{ fontSize: '0.85rem', fontWeight: 700 }}>ML</div>
-            </button>
-
-            {/* ── Decorative: Fullstack ── */}
-            <button type="button" onClick={() => {}} style={{
-              flex: '1 1 0', minWidth: 90, padding: '0.75rem 0.5rem', borderRadius: '10px',
-              border: '2px solid rgba(16,185,129,0.3)', background: 'rgba(16,185,129,0.05)',
-              textAlign: 'center', cursor: 'pointer', opacity: 0.7,
-              transition: 'all 0.2s', color: 'inherit', fontFamily: 'inherit',
-            }}
-              onMouseEnter={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.borderColor = 'rgba(16,185,129,0.6)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
-              onMouseLeave={e => { e.currentTarget.style.opacity = '0.7'; e.currentTarget.style.borderColor = 'rgba(16,185,129,0.3)'; e.currentTarget.style.transform = 'none'; }}
-            >
-              <div style={{ fontSize: '1.8rem', marginBottom: '0.25rem' }}>💻</div>
-              <div style={{ fontSize: '0.85rem', fontWeight: 700 }}>Fullstack</div>
-            </button>
-
-            {/* ── Decorative: Data Analysis ── */}
-            <button type="button" onClick={() => {}} style={{
-              flex: '1 1 0', minWidth: 90, padding: '0.75rem 0.5rem', borderRadius: '10px',
-              border: '2px solid rgba(245,158,11,0.3)', background: 'rgba(245,158,11,0.05)',
-              textAlign: 'center', cursor: 'pointer', opacity: 0.7,
-              transition: 'all 0.2s', color: 'inherit', fontFamily: 'inherit',
-            }}
-              onMouseEnter={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.borderColor = 'rgba(245,158,11,0.6)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
-              onMouseLeave={e => { e.currentTarget.style.opacity = '0.7'; e.currentTarget.style.borderColor = 'rgba(245,158,11,0.3)'; e.currentTarget.style.transform = 'none'; }}
-            >
-              <div style={{ fontSize: '1.8rem', marginBottom: '0.25rem' }}>📊</div>
-              <div style={{ fontSize: '0.85rem', fontWeight: 700 }}>Data Analysis</div>
-            </button>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.85rem', marginTop: '1rem' }}>
+            {selectedCategoryObjects.map((category) => (
+              <div key={category.id} className="pill" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'center', background: 'rgba(255,255,255,0.04)', borderColor: 'rgba(59, 130, 246, 0.15)' }}>
+                <span>{category.emoji}</span>
+                {category.label}
+              </div>
+            ))}
           </div>
-
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.85rem' }}>
-            Matched against real Azerbaijan job postings
+          <div style={{ marginTop: '1rem', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+            Focus your CV analysis on the categories that match your career goals. You may select 1 to 9 fields.
           </div>
-
           {sampleCvs.length > 0 && (
-            <div style={{ marginTop: '1.25rem' }}>
-              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
-                Or try a sample CV:
-              </p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <div style={{ marginTop: '1.5rem' }}>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>Try a sample analysis:</p>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
                 {sampleCvs.map((cv, i) => (
                   <button key={i} className="btn-outline btn-sm" onClick={() => handleAnalyzeSample(cv.filename)} disabled={loading}>
-                    <FileText size={14} /> {cv.filename}
+                    <FileText size={14} /> {cv.label}
                   </button>
                 ))}
               </div>
@@ -252,11 +226,12 @@ export default function IndividualDashboard({ tier = 'free', onShowPricing }) {
           )}
         </div>
 
-        {/* Right: Upload Zone */}
         <div
           className={`upload-zone ${isDragging ? 'drag-active' : ''} ${selectedFile ? 'has-file' : ''}`}
-          onDragOver={handleDragOver} onDragLeave={handleDragLeave}
-          onDrop={handleDrop} onClick={() => fileInputRef.current?.click()}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          onClick={() => fileInputRef.current?.click()}
         >
           <input ref={fileInputRef} type="file" accept=".pdf" onChange={handleFileSelect} style={{ display: 'none' }} />
           <div className="upload-zone-icon">
@@ -266,6 +241,9 @@ export default function IndividualDashboard({ tier = 'free', onShowPricing }) {
             <>
               <h3 style={{ color: 'var(--success)' }}>{selectedFile.name}</h3>
               <p>Click to change file or drag a new one</p>
+              <button className="btn" onClick={(e) => { e.stopPropagation(); handleAnalyze(); }} disabled={loading} style={{ marginTop: '1.5rem', position: 'relative', zIndex: 2 }}>
+                {loading ? <><span className="spinner"></span> Analyzing...</> : <><Sparkles size={18} /> Analyze My CV</>}
+              </button>
             </>
           ) : (
             <>
@@ -273,327 +251,222 @@ export default function IndividualDashboard({ tier = 'free', onShowPricing }) {
               <p>or click to browse • PDF files only</p>
             </>
           )}
-          {selectedFile && !selectedFile.isSample && (
-            <button className="btn" onClick={(e) => { e.stopPropagation(); handleAnalyze(); }} disabled={loading}
-              style={{ marginTop: '1.5rem', position: 'relative', zIndex: 2 }}>
-              {loading ? <><span className="spinner"></span> Analyzing...</> : <><Sparkles size={18} /> Analyze My CV</>}
-            </button>
-          )}
         </div>
       </div>
 
-      {/* Loading */}
       {loading && !analysis && (
         <div className="glass-card animate-pulse" style={{ textAlign: 'center', padding: '3rem' }}>
           <span className="spinner" style={{ width: 40, height: 40, borderWidth: 3 }}></span>
           <h3 style={{ marginTop: '1rem', color: 'var(--text-secondary)' }}>
-            Running Hybrid AI Analysis (Local ML + Llama 3.3 70B)...
+            Generating your multi-category fit profile...
           </h3>
         </div>
       )}
 
-      {/* ─── ANALYSIS RESULTS ─── */}
       {analysis && (
         <div className="animate-scale-in">
-          {/* Score Gauges Row */}
           <div className="grid-3" style={{ marginBottom: '1.5rem' }}>
-            {/* Overall Score (always visible) */}
             <div className="glass-card" style={{ textAlign: 'center' }}>
               <h3 style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
                 <Target size={18} style={{ color: 'var(--accent-primary)' }} /> Overall Fit
               </h3>
-              <ScoreGauge score={Math.round(analysis.overall_score)} label="Final Score" />
+              <ScoreGauge score={Math.round(analysis.overall_score)} label="Final Fit Score" />
               <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
-                Refined by Llama 3.3 70B
+                Multi-category scoring across {analysis.selected_categories.length} fields.
               </p>
             </div>
 
-            {/* Semantic Score (pro only) */}
-            <BlurOverlay isLocked={!isPro} onUpgrade={onShowPricing} label="Semantic Score">
-              <div className="glass-card" style={{ textAlign: 'center' }}>
-                <h3 style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
-                  <Zap size={18} style={{ color: '#8b5cf6' }} /> Semantic Score
-                </h3>
-                <ScoreGauge
-                  score={Math.round(analysis.top_matches[0]?.scores?.semantic || 0)}
-                  label="CV-Job Similarity" size={140}
-                />
-                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
-                  SBERT embedding match
-                </p>
-              </div>
-            </BlurOverlay>
+            <div className="glass-card" style={{ textAlign: 'center' }}>
+              <h3 style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+                <Zap size={18} style={{ color: '#8b5cf6' }} /> Semantic Match
+              </h3>
+              <ScoreGauge score={Math.round(analysis.semantic_score)} label="Context Match" size={140} />
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
+                How well your CV meaningfully aligns with live job descriptions.
+              </p>
+            </div>
 
-            {/* Skill Match Score (pro only) */}
-            <BlurOverlay isLocked={!isPro} onUpgrade={onShowPricing} label="Skill Match Score">
-              <div className="glass-card" style={{ textAlign: 'center' }}>
-                <h3 style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
-                  <CheckCircle size={18} style={{ color: 'var(--success)' }} /> Skill Match
-                </h3>
-                <ScoreGauge
-                  score={Math.round(analysis.top_matches[0]?.scores?.skill_match || 0)}
-                  label="Skills Matched" size={140}
-                />
-                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
-                  RF model prediction match
-                </p>
-              </div>
-            </BlurOverlay>
+            <div className="glass-card" style={{ textAlign: 'center' }}>
+              <h3 style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+                <CheckCircle size={18} style={{ color: 'var(--success)' }} /> Skill Match
+              </h3>
+              <ScoreGauge score={Math.round(analysis.skill_match_score)} label="Skill Coverage" size={140} />
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
+                Match percentage based on extracted skills versus employer requirements.
+              </p>
+            </div>
           </div>
 
-          {/* Your Skills (pro only) */}
-          {isPro && analysis.extracted_skills.length > 0 && (
-            <div className="glass-card" style={{ marginBottom: '1.5rem' }}>
+          <div className="grid-2" style={{ marginBottom: '1.5rem' }}>
+            <div className="glass-card">
               <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <CheckCircle size={18} style={{ color: 'var(--success)' }} /> Your Extracted Skills
+                <CheckCircle size={18} style={{ color: 'var(--success)' }} /> Extracted Skills & Proficiency
               </h3>
               <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
-                {analysis.extracted_skills.length} skills detected in your CV using spaCy NLP
+                Skills detected from your CV and classified into proficiency bands.
               </p>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
-                {analysis.extracted_skills.map((skill, i) => (
-                  <span key={i} className="pill success">{skill}</span>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+                {analysis.extracted_skills.map((item, index) => (
+                  <div key={index} className="skill-chip">
+                    <div>{item.skill}</div>
+                    <div className={`skill-level ${item.level.toLowerCase()}`}>{item.level}</div>
+                  </div>
                 ))}
               </div>
             </div>
-          )}
 
-          {/* Top Job Matches */}
+            <div className="glass-card">
+              <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Lightbulb size={18} style={{ color: 'var(--warning)' }} /> Progress Tracker
+              </h3>
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
+                Every CV upload refreshes your skill map and readiness score automatically.
+              </p>
+              <div className="progress-summary">
+                <div>
+                  <div className="metric-label">Last updated</div>
+                  <div style={{ fontSize: '1rem', fontWeight: 700, marginTop: '0.35rem' }}>
+                    {new Date(analysis.analyzed_at).toLocaleString()}
+                  </div>
+                </div>
+                <div>
+                  <div className="metric-label">Current score</div>
+                  <div style={{ fontSize: '1.5rem', fontWeight: 700, marginTop: '0.35rem', color: 'var(--accent-primary)' }}>
+                    {Math.round(analysis.overall_score)}%
+                  </div>
+                </div>
+              </div>
+              {history.length > 1 && (
+                <div style={{ marginTop: '1rem' }}>
+                  <div className="metric-label" style={{ marginBottom: '0.5rem' }}>Recent uploads</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    {history.slice(0, 3).map((item, idx) => (
+                      <div key={idx} className="timeline-entry">
+                        <div>{new Date(item.analyzed_at).toLocaleDateString()}</div>
+                        <div>{Math.round(item.overall_score)}%</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <button className="btn-outline" onClick={handleCopyLink} style={{ marginTop: '1rem' }}>
+                <ExternalLink size={14} /> Copy Shareable Report Link
+              </button>
+              {copyMessage && <div style={{ marginTop: '0.75rem', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{copyMessage}</div>}
+            </div>
+          </div>
+
           <div className="glass-card" style={{ marginBottom: '1.5rem' }}>
-            <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <Briefcase size={18} style={{ color: 'var(--accent-secondary)' }} /> Top Job Matches
-            </h3>
-            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
-              Best cybersecurity positions in the Azerbaijan job market for your profile
-            </p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+              <div>
+                <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <Briefcase size={18} style={{ color: 'var(--accent-secondary)' }} /> Top 10 Job Matches
+                </h3>
+                <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
+                  Live-alike job match scores based on your skill profile and target categories.
+                </p>
+              </div>
+              <div className="pill" style={{ background: 'rgba(59, 130, 246, 0.08)', color: 'var(--accent-primary)' }}>
+                {analysis.top_matches.length} matched roles
+              </div>
+            </div>
+            <div style={{ display: 'grid', gap: '1rem', marginTop: '1rem' }}>
               {analysis.top_matches.map((job, i) => (
-                <div key={i} className="job-match-card animate-slide-in" style={{ animationDelay: `${i * 0.15}s` }}>
+                <div key={i} className="job-match-card animate-slide-in" style={{ animationDelay: `${i * 0.08}s` }}>
                   <div className="job-match-header">
                     <div>
                       <div className="job-match-title">{job.title}</div>
-                      {isPro && (
-                        <div className="job-match-company">
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
-                            <Building size={14} /> {job.company}
-                          </span>
-                          <span style={{ margin: '0 0.5rem', color: 'var(--glass-border)' }}>•</span>
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
-                            <MapPin size={14} /> {job.location}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                    <div className={`job-match-score ${getScoreClass(job.match_percentage)}`}>
-                      {Math.round(job.match_percentage)}%
-                    </div>
-                  </div>
-
-                  {/* Skills comparison */}
-                  <div style={{ display: 'flex', gap: '2rem', fontSize: '0.85rem' }}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ color: 'var(--success)', fontWeight: 600, marginBottom: '0.35rem', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                        ✓ Matched Skills
+                      <div className="job-match-company">
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}><Building size={14} /> {job.company}</span>
+                        <span style={{ margin: '0 0.5rem', color: 'var(--glass-border)' }}>•</span>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}><MapPin size={14} /> {job.location}</span>
                       </div>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem' }}>
-                        {job.matched_skills.slice(0, isPro ? 20 : 4).map((s, j) => (
-                          <span key={j} className="pill success" style={{ fontSize: '0.75rem', padding: '0.15rem 0.5rem' }}>{s}</span>
+                    </div>
+                    <div className={`job-match-score ${getScoreClass(job.match_percentage)}`}>{job.match_percentage}%</div>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', fontSize: '0.85rem' }}>
+                    <div>
+                      <div style={{ color: 'var(--success)', fontWeight: 600, marginBottom: '0.35rem', fontSize: '0.75rem', textTransform: 'uppercase' }}>Matched Skills</div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem' }}>
+                        {job.matched_skills.map((skill, j) => (
+                          <span key={j} className="pill success">{skill}</span>
                         ))}
                       </div>
                     </div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ color: 'var(--danger)', fontWeight: 600, marginBottom: '0.35rem', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                        ✗ Missing Skills
-                      </div>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem' }}>
-                        {job.missing_skills.slice(0, isPro ? 20 : 3).map((s, j) => (
-                          <span key={j} className="pill danger" style={{ fontSize: '0.75rem', padding: '0.15rem 0.5rem' }}>{s}</span>
+                    <div>
+                      <div style={{ color: 'var(--danger)', fontWeight: 600, marginBottom: '0.35rem', fontSize: '0.75rem', textTransform: 'uppercase' }}>Missing Skills</div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem' }}>
+                        {job.missing_skills.map((skill, j) => (
+                          <span key={j} className="pill danger">{skill}</span>
                         ))}
-                        {!isPro && job.missing_skills.length > 3 && (
-                          <span className="pill" style={{ fontSize: '0.75rem', padding: '0.15rem 0.5rem', cursor: 'pointer', background: 'rgba(139,92,246,0.15)', color: '#8b5cf6' }}
-                            onClick={onShowPricing}>
-                            <Lock size={10} /> +more
-                          </span>
-                        )}
                       </div>
                     </div>
                   </div>
-
-                  {/* Pro: Required skills info */}
-                  {isPro && job.required_skills && (
-                    <div style={{ marginTop: '0.75rem', fontSize: '0.8rem' }}>
-                      <span style={{ color: 'var(--text-secondary)' }}>Required ({job.required_skills.length}): </span>
-                      {job.required_skills.join(', ')}
-                    </div>
-                  )}
-
-                  {isPro && job.url && (
-                    <a href={job.url} target="_blank" rel="noopener noreferrer"
-                      style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', color: 'var(--accent-primary)', fontSize: '0.8rem', marginTop: '0.75rem', textDecoration: 'none' }}>
-                      View Job Posting <ExternalLink size={12} />
-                    </a>
-                  )}
+                  <a href={job.url} target="_blank" rel="noopener noreferrer" className="course-link" style={{ marginTop: '1rem', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+                    View sample job posting <ExternalLink size={12} />
+                  </a>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* ─── COURSE RECOMMENDATIONS (PRO) ─── */}
-          {analysis.top_matches[0]?.courses && analysis.top_matches[0].courses.length > 0 && (
-            <BlurOverlay isLocked={!isPro} onUpgrade={onShowPricing} label="Course Recommendations">
-              <div className="glass-card" style={{ marginBottom: '1.5rem', borderLeft: '4px solid #8b5cf6' }}>
-                <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <BookOpen size={18} style={{ color: '#8b5cf6' }} /> Course Recommendations
-                </h3>
-                <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
-                  Learn these skills to boost your match score for the top job
-                </p>
-                <div className="course-grid">
-                  {analysis.top_matches[0].courses.map((course, i) => (
-                    <div key={i} className="course-card">
-                      <div className="course-skill">{course.skill}</div>
-                      <div className="course-name">{course.course_name}</div>
-                      <div className="course-platform">
-                        <span className={`platform-badge ${course.platform.toLowerCase().replace(/\s/g, '')}`}>
-                          {course.platform}
-                        </span>
-                      </div>
-                      <a href={course.link} target="_blank" rel="noopener noreferrer" className="course-link">
-                        Enroll Now <ExternalLink size={12} />
-                      </a>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </BlurOverlay>
-          )}
-
-          {/* ─── LEARNING PATH (PRO) ─── */}
-          {analysis.top_matches[0]?.learning_path && analysis.top_matches[0].learning_path.length > 0 && (
-            <BlurOverlay isLocked={!isPro} onUpgrade={onShowPricing} label="Learning Path">
-              <div className="glass-card" style={{ marginBottom: '1.5rem', borderLeft: '4px solid var(--success)' }}>
-                <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <TrendingUp size={18} style={{ color: 'var(--success)' }} /> Learning Path
-                </h3>
-                <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>
-                  Learn each skill to progressively boost your match score
-                </p>
-                <div className="learning-path">
-                  {/* Starting score */}
-                  <div className="path-start">
-                    <div className="path-score-circle start">
-                      {Math.round(analysis.overall_score)}%
-                    </div>
-                    <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Current</div>
+          <div className="glass-card" style={{ marginBottom: '1.5rem', borderLeft: '4px solid var(--success)' }}>
+            <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <TrendingUp size={18} style={{ color: 'var(--success)' }} /> 30/60/90-Day Skill Plan
+            </h3>
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
+              Personalized milestones for the next 3 months based on your current skill fit and missing abilities.
+            </p>
+            <div className="learning-path">
+              {analysis.learning_path.map((phase, idx) => (
+                <div key={idx} className="path-card">
+                  <div className="path-card-header">
+                    <div style={{ fontWeight: 700 }}>{phase.phase}</div>
+                    <div className="skill-badge">+{phase.increase}%</div>
                   </div>
-
-                  {analysis.top_matches[0].learning_path.map((step, i) => (
-                    <div key={i} className="path-step">
-                      <div className="path-connector">
-                        <ArrowRight size={14} style={{ color: 'var(--text-secondary)' }} />
-                      </div>
-                      <div className="path-skill-card">
-                        <div className="path-skill-name">{step.skill}</div>
-                        <div className="path-impact">+{step.increase}%</div>
-                      </div>
-                      <div className="path-connector">
-                        <ArrowRight size={14} style={{ color: 'var(--text-secondary)' }} />
-                      </div>
-                      <div className={`path-score-circle ${step.after_learning_score >= 70 ? 'high' : step.after_learning_score >= 50 ? 'medium' : ''}`}>
-                        {Math.round(step.after_learning_score)}%
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Final projected score */}
-                <div style={{
-                  marginTop: '1.5rem', textAlign: 'center', padding: '1rem',
-                  background: 'rgba(16, 185, 129, 0.08)', borderRadius: '10px', border: '1px solid rgba(16, 185, 129, 0.2)'
-                }}>
-                  <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '0.25rem' }}>
-                    Projected Score After Full Path
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '0.75rem' }}>
+                    {phase.skills.map((skill, j) => (
+                      <span key={j} className="pill accent">{skill}</span>
+                    ))}
                   </div>
-                  <div style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--success)' }}>
-                    {Math.round(analysis.top_matches[0].learning_path[analysis.top_matches[0].learning_path.length - 1].after_learning_score)}%
+                  <div style={{ marginTop: '1rem', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                    Estimated score after phase: <strong>{phase.after_learning_score}%</strong>
                   </div>
                 </div>
-              </div>
-            </BlurOverlay>
-          )}
-
-          {/* ─── AI CAREER ADVISOR (PRO) ─── */}
-          <BlurOverlay isLocked={!isPro} onUpgrade={onShowPricing} label="AI Career Advisor">
-            <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-              <div>
-                <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <Lightbulb size={18} style={{ color: 'var(--warning)' }} /> AI Career Advisor
-                </h3>
-                <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                  Get personalized strategy powered by Llama 3.3 70B
-                </p>
-              </div>
-              {isPro && (
-                <button className="btn" onClick={handleGetRecommendations} disabled={loadingRecs}
-                  style={{ width: '100%', justifyContent: 'center', marginTop: '1rem' }}>
-                  {loadingRecs ? <><span className="spinner"></span> Generating...</> : <><Sparkles size={18} /> Get AI Career Strategy</>}
-                </button>
-              )}
+              ))}
             </div>
-          </BlurOverlay>
+          </div>
 
-          {/* AI Recommendations output */}
-          {recommendations && (
-            <div className="animate-fade-in" style={{ marginTop: '1.5rem' }}>
-              <div className="glass-card" style={{ borderLeft: '4px solid var(--accent-secondary)' }}>
-                <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <Sparkles size={18} style={{ color: 'var(--accent-secondary)' }} /> AI Improvement Plan
-                </h3>
-                <div style={{ padding: '1rem', background: 'rgba(139, 92, 246, 0.08)', borderRadius: '10px', marginBottom: '1.5rem', marginTop: '0.5rem' }}>
-                  <p style={{ fontSize: '0.95rem', lineHeight: '1.7' }}>{recommendations.improvement_plan}</p>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.75rem', color: 'var(--accent-secondary)' }}>
-                    <Clock size={16} />
-                    <span style={{ fontWeight: 600, fontSize: '0.85rem' }}>Estimated timeline: {recommendations.estimated_time}</span>
+          <div className="glass-card" style={{ borderLeft: '4px solid rgba(247, 191, 0, 0.4)' }}>
+            <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <BookOpen size={18} style={{ color: 'var(--warning)' }} /> Skill Gap Simulation
+            </h3>
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
+              If you learn these key skills, your match score improves accordingly.
+            </p>
+            <div style={{ display: 'grid', gap: '1rem' }}>
+              {analysis.skill_gap_simulation.map((item, index) => (
+                <div key={index} className="sim-card">
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', alignItems: 'center' }}>
+                    <div style={{ fontWeight: 700 }}>{item.skill}</div>
+                    <div className="skill-badge">+{item.increase}%</div>
+                  </div>
+                  <div style={{ marginTop: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                    Projected overall score: <strong>{item.projected_score}%</strong>
                   </div>
                 </div>
-                <h4 style={{ marginBottom: '0.75rem', fontSize: '0.95rem' }}>Skills to Acquire</h4>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                  {recommendations.skill_gaps.map((rec, i) => (
-                    <div key={i} className="rec-card">
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                        <strong style={{ fontSize: '0.9rem' }}>{rec.skill}</strong>
-                        <span className={`importance-badge ${rec.importance}`}>{rec.importance}</span>
-                      </div>
-                      <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>{rec.reason}</p>
-                      {rec.resources?.length > 0 && (
-                        <div style={{ fontSize: '0.8rem' }}>
-                          <span style={{ color: 'var(--text-secondary)' }}>Resources: </span>
-                          {rec.resources.map((r, j) => (
-                            <span key={j}>
-                              <span style={{ color: 'var(--accent-primary)' }}>{r}</span>
-                              {j < rec.resources.length - 1 && <span style={{ color: 'var(--glass-border)' }}> • </span>}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
+              ))}
             </div>
-          )}
+          </div>
         </div>
       )}
 
-      {/* Empty State */}
       {!analysis && !loading && (
         <div className="glass-card" style={{ textAlign: 'center', padding: '4rem 2rem' }}>
           <FileText size={56} style={{ color: 'var(--text-secondary)', opacity: 0.3, marginBottom: '1rem' }} />
-          <h3 style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>
-            Upload your CV to get started
-          </h3>
+          <h3 style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>Upload your CV to get started</h3>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '0.5rem' }}>
-            We'll analyze your skills against real cybersecurity job postings in Azerbaijan
+            We'll generate your multi-role skill map, missing skills, top jobs, and 30/60/90 plan.
           </p>
         </div>
       )}

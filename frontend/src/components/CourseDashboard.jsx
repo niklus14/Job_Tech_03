@@ -1,13 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
-import axios from 'axios';
 import {
   Building, Users, Upload, TrendingUp, BarChart2, 
   ChevronRight, AlertTriangle, CheckCircle, Target,
   BookOpen, ArrowRight, Layers, Zap, FileText,
   Link, Key, RefreshCw, Wifi
 } from 'lucide-react';
+import { dashboardStats as initialDashboardStats, students as initialStudents } from '../data/mockCourseData';
 
-const API_URL = 'https://eren14-newteam.hf.space';
 
 function MiniProgress({ value, color = 'blue', width = '100%' }) {
   return (
@@ -30,62 +29,80 @@ function CombinedScoreBadge({ score }) {
 
 export default function CourseDashboard() {
   const [activeView, setActiveView] = useState('overview');
-  const [students, setStudents] = useState([]);
-  const [dashStats, setDashStats] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [students, setStudents] = useState(initialStudents);
+  const [dashStats, setDashStats] = useState(initialDashboardStats);
+  const [loading, setLoading] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [uploading, setUploading] = useState(false);
-  const [apiUrl, setApiUrl] = useState('https://intranet.hbtn.io/api/v1/students/12580');
-  const [apiKey, setApiKey] = useState('');
-  const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState(null);
+  const [studentImportError, setStudentImportError] = useState('');
   const fileInputRef = useRef(null);
 
   useEffect(() => {
-    fetchData();
+    setDashStats(initialDashboardStats);
+    setStudents(initialStudents);
   }, []);
 
-  const fetchData = async () => {
+  const fetchData = () => {
     setLoading(true);
-    try {
-      const [studentsRes, statsRes] = await Promise.all([
-        axios.get(`${API_URL}/course/students`),
-        axios.get(`${API_URL}/course/dashboard`)
-      ]);
-      setStudents(studentsRes.data);
-      setDashStats(statsRes.data);
-    } catch (err) {
-      console.error('Error fetching course data:', err);
-    }
-    setLoading(false);
+    setTimeout(() => {
+      setStudents(initialStudents);
+      setDashStats(initialDashboardStats);
+      setLoading(false);
+    }, 200);
   };
 
   const handleUploadStudents = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
     setUploading(true);
+    setStudentImportError('');
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-      await axios.post(`${API_URL}/course/upload-students`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      if (!Array.isArray(parsed)) {
+        throw new Error('Student upload file must contain an array of student records.');
+      }
+      setStudents(parsed);
+      const avgProgress = Math.round(parsed.reduce((sum, item) => sum + (item.student?.progress_percentage ?? 0), 0) / Math.max(parsed.length, 1));
+      const avgJobReadiness = Math.round(parsed.reduce((sum, item) => sum + (item.job_readiness_score ?? 0), 0) / Math.max(parsed.length, 1));
+      const avgCombined = Math.round(parsed.reduce((sum, item) => sum + (item.combined_score ?? 0), 0) / Math.max(parsed.length, 1));
+      const skillCounts = parsed.flatMap((item) => item.skill_gaps || []).reduce((counts, skill) => {
+        counts[skill] = (counts[skill] || 0) + 1;
+        return counts;
+      }, {});
+      const topMissingSkills = Object.entries(skillCounts)
+        .sort(([, a], [, b]) => b - a)
+        .slice(0, 4)
+        .map(([skill, count]) => ({ skill, count }));
+
+      setDashStats({
+        total_students: parsed.length,
+        avg_progress: avgProgress,
+        avg_job_readiness: avgJobReadiness,
+        avg_combined_score: avgCombined,
+        top_missing_skills: topMissingSkills
       });
-      await fetchData();
     } catch (err) {
-      console.error('Upload error:', err);
-      alert('Error uploading student data. Make sure it\'s a valid JSON file.');
+      setStudentImportError(err.message || 'Invalid JSON file.');
     }
     setUploading(false);
   };
 
-  const handleViewStudent = async (studentId) => {
-    try {
-      const res = await axios.get(`${API_URL}/course/integrate/${studentId}`);
-      setSelectedStudent(res.data);
+  const handleViewStudent = (studentId) => {
+    const next = students.find((item) => item.student.student_id === studentId);
+    if (next) {
+      setSelectedStudent(next);
       setActiveView('detail');
-    } catch (err) {
-      console.error('Error fetching student:', err);
     }
+  };
+
+  const handleSyncApi = () => {
+    setSyncResult({
+      message: 'Demo sync simulated. Your local dataset is shown below.',
+      total_students: students.length,
+      errors: []
+    });
   };
 
   if (loading) {
@@ -98,27 +115,6 @@ export default function CourseDashboard() {
       </div>
     );
   }
-
-  const handleSyncApi = async () => {
-    if (!apiUrl || !apiKey) {
-      alert('Please enter both API URL and API Key');
-      return;
-    }
-    setSyncing(true);
-    setSyncResult(null);
-    try {
-      const res = await axios.post(`${API_URL}/course/sync-api`, {
-        api_url: apiUrl,
-        api_key: apiKey
-      });
-      setSyncResult(res.data);
-      await fetchData();
-    } catch (err) {
-      const detail = err.response?.data?.detail || 'Connection failed';
-      setSyncResult({ error: detail });
-    }
-    setSyncing(false);
-  };
 
   return (
     <div className="animate-fade-in">
@@ -149,6 +145,11 @@ export default function CourseDashboard() {
           </button>
         </div>
       </div>
+      {studentImportError && (
+        <div className="glass-card" style={{ marginBottom: '1rem', borderLeft: '4px solid var(--danger)', color: 'var(--danger)' }}>
+          <strong>Upload Error: </strong>{studentImportError}
+        </div>
+      )}
 
       {/* Sub-navigation tabs */}
       <div className="page-tabs">
@@ -184,79 +185,45 @@ export default function CourseDashboard() {
       {activeView === 'connect' && (
         <div className="animate-fade-in">
           <div className="grid-2" style={{ marginBottom: '1.5rem' }}>
-            {/* API Settings */}
             <div className="glass-card" style={{ borderLeft: '4px solid var(--accent-primary)' }}>
               <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <Wifi size={18} style={{ color: 'var(--accent-primary)' }} />
                 Connect Your LMS
               </h3>
               <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>
-                Enter your Learning Management System API credentials to sync live student data
+                This demo uses local mock student data. Simulate a sync to refresh the dashboard without requiring an external endpoint.
               </p>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                <div>
-                  <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.35rem', marginBottom: '0.35rem' }}>
-                    <Link size={14} /> API Endpoint URL
-                  </label>
-                  <input
-                    type="text"
-                    value={apiUrl}
-                    onChange={e => setApiUrl(e.target.value)}
-                    placeholder="https://intranet.hbtn.io/api/v1/students/12580"
-                    className="api-input"
-                  />
+                <div className="pill accent" style={{ alignSelf: 'flex-start', padding: '0.75rem 1rem' }}>
+                  Local Demo Mode
                 </div>
-                <div>
-                  <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.35rem', marginBottom: '0.35rem' }}>
-                    <Key size={14} /> API Key
-                  </label>
-                  <input
-                    type="password"
-                    value={apiKey}
-                    onChange={e => setApiKey(e.target.value)}
-                    placeholder="Your API key..."
-                    className="api-input"
-                  />
+                <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: 1.6 }}>
+                  Upload student JSON data to preview course analytics, or press "Simulate Data Sync" to refresh the current demo dataset.
                 </div>
                 <button
                   className="btn"
                   onClick={handleSyncApi}
-                  disabled={syncing}
                   style={{ width: '100%', justifyContent: 'center' }}
                 >
-                  {syncing ? (
-                    <><span className="spinner"></span> Syncing...</>
-                  ) : (
-                    <><RefreshCw size={16} /> Sync Students</>  
-                  )}
+                  <RefreshCw size={16} /> Simulate Data Sync
                 </button>
               </div>
 
               {syncResult && (
                 <div style={{
                   marginTop: '1rem', padding: '1rem', borderRadius: '8px',
-                  background: syncResult.error ? 'rgba(239,68,68,0.1)' : 'rgba(16,185,129,0.1)',
-                  border: `1px solid ${syncResult.error ? 'rgba(239,68,68,0.3)' : 'rgba(16,185,129,0.3)'}`,
+                  background: 'rgba(16,185,129,0.1)',
+                  border: '1px solid rgba(16,185,129,0.3)',
                   fontSize: '0.85rem'
                 }}>
-                  {syncResult.error ? (
-                    <div style={{ color: 'var(--danger)' }}>❌ {syncResult.error}</div>
-                  ) : (
-                    <div style={{ color: 'var(--success)' }}>
-                      ✅ {syncResult.message} (Total: {syncResult.total_students})
-                      {syncResult.errors?.length > 0 && (
-                        <div style={{ marginTop: '0.5rem', color: 'var(--warning)', fontSize: '0.8rem' }}>
-                          ⚠ {syncResult.errors.join(', ')}
-                        </div>
-                      )}
-                    </div>
-                  )}
+                  <div style={{ color: 'var(--success)' }}>
+                    ✅ {syncResult.message} (Total: {syncResult.total_students})
+                  </div>
                 </div>
               )}
             </div>
 
-            {/* Supported Platforms */}
             <div className="glass-card">
               <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <Layers size={18} style={{ color: 'var(--accent-secondary)' }} />
@@ -271,10 +238,10 @@ export default function CourseDashboard() {
                     🎓
                   </div>
                   <div>
-                    <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>Holberton School</div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>intranet.hbtn.io/api/v1/students/[id]</div>
+                    <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>Local Demo Data</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Built-in sample students and analytics</div>
                   </div>
-                  <span className="pill success" style={{ marginLeft: 'auto', fontSize: '0.7rem' }}>Active</span>
+                  <span className="pill success" style={{ marginLeft: 'auto', fontSize: '0.7rem' }}>Demo</span>
                 </div>
                 <div style={{
                   padding: '1rem', borderRadius: '10px', border: '1px solid var(--glass-border)',
@@ -292,9 +259,7 @@ export default function CourseDashboard() {
               </div>
 
               <div style={{ marginTop: '1.5rem', fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-                <strong>How it works:</strong> Enter your API URL (with student ID) and API key. 
-                JobPath will fetch the student's curriculum data, map their completed projects 
-                to job market skills, and calculate readiness scores.
+                <strong>In this demo:</strong> Use the upload button to import a student JSON file. The current sample data is rendered automatically in the dashboard.
               </div>
             </div>
           </div>
