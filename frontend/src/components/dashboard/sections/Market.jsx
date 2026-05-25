@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { TrendingUp, Activity, Users } from 'lucide-react';
+import { TrendingUp, Activity } from 'lucide-react';
 
 export default function MarketSection({ userTier }) {
   const [marketData, setMarketData] = useState(null);

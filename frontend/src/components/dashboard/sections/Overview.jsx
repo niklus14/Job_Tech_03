@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Briefcase, Target, TrendingUp, Award } from 'lucide-react';
-import MetricCard from './components/MetricCard';
-import CareerScoreCard from './components/CareerScoreCard';
-import ProfileStrengthCard from './components/ProfileStrengthCard';
+import MetricCard from '../components/MetricCard';
+import CareerScoreCard from '../components/CareerScoreCard';
+import ProfileStrengthCard from '../components/ProfileStrengthCard';
 
 export default function OverviewSection({ userTier }) {
   const [marketInsights, setMarketInsights] = useState(null);

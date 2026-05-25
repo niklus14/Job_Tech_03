@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useEffect as useEffectHook } from 'react';
-import { Briefcase, MapPin, DollarSign, TrendingUp } from 'lucide-react';
+import { Briefcase, DollarSign, TrendingUp } from 'lucide-react';
 
 export default function JobsSection({ userTier }) {
   const [studentProfile, setStudentProfile] = useState(null);
